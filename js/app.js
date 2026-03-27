@@ -319,7 +319,7 @@ const buildMythFact = (entry) => {
   };
 };
 
-const renderMythFactCard = (entry) => {
+const renderMythFactCard = (entry, openModal = false) => {
   if (!els.mythFactCard || !els.mythFactModalContent || !els.mythFactOverlay) return;
 
   if (!entry) {
@@ -348,8 +348,10 @@ const renderMythFactCard = (entry) => {
 
   els.mythFactCard.innerHTML = cardMarkup;
   els.mythFactModalContent.innerHTML = cardMarkup;
-  els.mythFactOverlay.classList.add("open");
-  els.mythFactOverlay.setAttribute("aria-hidden", "false");
+  if (openModal) {
+    els.mythFactOverlay.classList.add("open");
+    els.mythFactOverlay.setAttribute("aria-hidden", "false");
+  }
 };
 
 const renderFactCheckQueue = (entries, currentClock) => {
@@ -783,7 +785,7 @@ const bindFactCheckActions = () => {
     if (!claimId) return;
 
     ui.selectedClaimId = claimId;
-    renderMythFactCard(ui.factCheckLookup.get(claimId));
+    renderMythFactCard(ui.factCheckLookup.get(claimId), true);
   });
 };
 
