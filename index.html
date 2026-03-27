@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PulseMandate | Political Sentiment Intelligence</title>
+  <title>SentimentX | Voter Awareness & Misinformation Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -16,66 +16,79 @@
   <div id="tabLoadingAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   <div class="app-shell" id="appShell">
     <aside class="sidebar glass">
-      <div class="brand-wrap">
-        <div class="brand-badge">🧠</div>
-        <div>
-          <h1>SentimentX</h1>
-          <p id="sidebarTagline">Election Intelligence Grid</p>
+      <div class="sidebar-head">
+        <div class="brand-wrap">
+          <button id="sidebarCollapseToggle" class="brand-badge brand-toggle-btn" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">🧠</button>
+          <div>
+            <h1>SentimentX</h1>
+            <p id="sidebarTagline">Voter Awareness Command Grid</p>
+          </div>
         </div>
       </div>
 
       <nav class="tab-nav" aria-label="Dashboard tabs">
         <button class="tab-link active" data-tab="overview" data-accent="#2563eb" data-accent-rgb="37 99 235"><i data-lucide="layout-dashboard"></i><span>Overview</span></button>
+        <button class="tab-link" data-tab="voter" data-accent="#0f766e" data-accent-rgb="15 118 110"><i data-lucide="users"></i><span>Voter Corner</span></button>
         <button class="tab-link" data-tab="booth" data-accent="#0d9488" data-accent-rgb="13 148 136"><i data-lucide="map"></i><span>Booth Analysis</span></button>
         <button class="tab-link" data-tab="constituency" data-accent="#ea580c" data-accent-rgb="234 88 12"><i data-lucide="activity"></i><span>Constituency Analysis</span></button>
-        <button class="tab-link" data-tab="trends" data-accent="#ca8a04" data-accent-rgb="202 138 4"><i data-lucide="alert-triangle"></i><span>Trends &amp; Issues</span></button>
-        <button class="tab-link" data-tab="assistant" data-accent="#9333ea" data-accent-rgb="147 51 234"><i data-lucide="brain"></i><span>AI Assistant</span></button>
+        <button class="tab-link" data-tab="trends" data-accent="#ca8a04" data-accent-rgb="202 138 4"><i data-lucide="alert-triangle"></i><span>Integrity &amp; Awareness</span></button>
+        <button class="tab-link" data-tab="factcheck" data-accent="#2563eb" data-accent-rgb="37 99 235"><i data-lucide="shield-check"></i><span>Fact Check Hub</span></button>
+        <button class="tab-link" data-tab="assistant" data-accent="#9333ea" data-accent-rgb="147 51 234"><i data-lucide="brain"></i><span>Awareness AI Assistant</span></button>
       </nav>
 
-      <section class="controls-block">
-        <h2>Filters</h2>
-        <label>
-          Language
-          <select id="languageFilter">
-            <option value="all">All</option>
-            <option value="English">English</option>
-            <option value="Hindi">Hindi</option>
-            <option value="Hinglish">Hinglish</option>
-          </select>
-        </label>
-        <label>
-          Region
-          <select id="regionFilter">
-            <option value="all">All</option>
-            <option value="North">North</option>
-            <option value="South">South</option>
-            <option value="East">East</option>
-            <option value="West">West</option>
-            <option value="Central">Central</option>
-          </select>
-        </label>
-        <label>
-          Time Range
-          <select id="timeFilter">
-            <option value="15">Last 15 min</option>
-            <option value="60" selected>Last 60 min</option>
-            <option value="240">Last 4 hours</option>
-            <option value="1440">Last 24 hours</option>
-          </select>
-        </label>
+      <section class="controls-block sidebar-controls">
+        <details class="control-dropdown" open>
+          <summary>Filters</summary>
+          <div class="dropdown-grid">
+            <label>
+              Language
+              <select id="languageFilter">
+                <option value="all">All</option>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Hinglish">Hinglish</option>
+              </select>
+            </label>
+            <label>
+              Region
+              <select id="regionFilter">
+                <option value="all">All</option>
+                <option value="North">North</option>
+                <option value="South">South</option>
+                <option value="East">East</option>
+                <option value="West">West</option>
+                <option value="Central">Central</option>
+              </select>
+            </label>
+            <label>
+              Time Range
+              <select id="timeFilter">
+                <option value="15">Last 15 min</option>
+                <option value="60" selected>Last 60 min</option>
+                <option value="240">Last 4 hours</option>
+                <option value="1440">Last 24 hours</option>
+              </select>
+            </label>
+          </div>
+        </details>
 
-        <div class="switch-row">
-          <span>Demo Mode</span>
-          <button id="demoModeToggle" class="pill-btn" aria-pressed="false">Low Activity</button>
-        </div>
+        <details class="control-dropdown" open>
+          <summary>Controls & Exports</summary>
+          <div class="dropdown-grid">
+            <div class="switch-row">
+              <span>Demo Mode</span>
+              <button id="demoModeToggle" class="pill-btn" aria-pressed="false">Low Activity</button>
+            </div>
 
-        <div class="switch-row">
-          <span>Theme</span>
-          <button id="themeToggle" class="pill-btn" aria-pressed="false">Dark</button>
-        </div>
+            <div class="switch-row">
+              <span>Theme</span>
+              <button id="themeToggle" class="pill-btn" aria-pressed="false">Dark</button>
+            </div>
 
-        <button id="exportCsvBtn" class="action-btn">Export CSV</button>
-        <button id="warRoomBtn" class="action-btn">War-Room Report</button>
+            <button id="exportCsvBtn" class="action-btn">Export CSV</button>
+            <button id="warRoomBtn" class="action-btn">War-Room Report</button>
+          </div>
+        </details>
       </section>
     </aside>
     <button id="sidebarBackdrop" class="sidebar-backdrop" aria-label="Close sidebar"></button>
@@ -84,8 +97,9 @@
       <header class="topbar glass">
         <button id="menuToggle" class="menu-toggle" aria-label="Toggle sidebar"><i data-lucide="menu"></i></button>
         <div>
-          <p class="meta">Live Command Center</p>
+          <p class="meta">Neutral Civic Insight Console</p>
           <h2 id="activeTabTitle">Overview</h2>
+          <p class="meta">Domain 2 Mode: Voter Awareness &amp; Misinformation Control</p>
         </div>
         <div class="kpi-strip" id="kpiStrip">
           <div class="kpi-card">
@@ -163,6 +177,34 @@
         </div>
       </section>
 
+      <section class="tab-view" id="voter" role="tabpanel">
+        <div class="grid-two">
+          <article class="panel glass">
+            <div class="panel-head">
+              <h3>Public Pulse Snapshot</h3>
+              <span class="badge">Citizen Friendly</span>
+            </div>
+            <div id="voterPulseSummary" class="voter-pulse-summary"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <h3>Before You Share</h3>
+              <span class="badge">Voter Checklist</span>
+            </div>
+            <ul id="voterChecklist" class="voter-checklist"></ul>
+          </article>
+        </div>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <h3>Help & Verification</h3>
+            <span class="badge">Safe Voting Info</span>
+          </div>
+          <div id="voterHelpline" class="voter-helpline-grid"></div>
+        </article>
+      </section>
+
       <section class="tab-view" id="booth" role="tabpanel">
         <div class="grid-two">
           <article class="panel glass">
@@ -183,6 +225,14 @@
             </div>
           </article>
         </div>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <h3>Region-Wise Misinformation Heat Layer</h3>
+            <span class="badge">Critical / High / Medium</span>
+          </div>
+          <div id="regionMisinfoHeat" class="region-heat-layer"></div>
+        </article>
       </section>
 
       <section class="tab-view" id="constituency" role="tabpanel">
@@ -227,6 +277,24 @@
             <div id="trendingIssues" class="issues-wrap"></div>
           </article>
         </div>
+
+        <div class="grid-two">
+          <article class="panel glass">
+            <div class="panel-head">
+              <h3>Misinformation Watch</h3>
+              <span class="badge">Near Real-Time</span>
+            </div>
+            <div id="misinfoWatch" class="misinfo-watch"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <h3>Voter Awareness Advisory</h3>
+              <span class="badge">Neutral Guidance</span>
+            </div>
+            <ul id="awarenessAdvisory" class="advisory-list"></ul>
+          </article>
+        </div>
       </section>
 
       <section class="tab-view" id="assistant" role="tabpanel">
@@ -245,6 +313,34 @@
           </form>
         </article>
       </section>
+
+      <section class="tab-view" id="factcheck" role="tabpanel">
+        <div class="grid-two">
+          <article class="panel glass">
+            <div class="panel-head">
+              <h3>Claim Verification Queue</h3>
+              <span class="badge">Priority Review</span>
+            </div>
+            <div id="factCheckQueue" class="fact-check-queue"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <h3>Source Reliability Board</h3>
+              <span class="badge">Trust Index</span>
+            </div>
+            <div id="sourceTrustBoard" class="source-trust-board"></div>
+          </article>
+        </div>
+
+        <article class="panel glass">
+          <div class="panel-head">
+            <h3>Myth vs Fact Card</h3>
+            <span class="badge">One-Click Generator</span>
+          </div>
+          <div id="mythFactCard" class="myth-fact-card"></div>
+        </article>
+      </section>
       </div>
     </main>
   </div>
@@ -255,8 +351,8 @@
     <article class="report-sheet glass" id="warRoomSheet">
       <header class="report-head">
         <div>
-          <p class="meta">Campaign War-Room Snapshot</p>
-          <h3>Compact Decision Report</h3>
+          <p class="meta">Voter Awareness & Integrity Snapshot</p>
+          <h3>Misinformation Control Report</h3>
         </div>
         <div class="report-actions no-print">
           <button id="reportPrintBtn" class="pill-btn" type="button">Print</button>
@@ -291,6 +387,14 @@
         <h4>Constituencies At Risk</h4>
         <div id="reportRiskConstituencies" class="report-risk"></div>
       </section>
+    </article>
+  </section>
+
+  <section id="mythFactOverlay" class="myth-fact-overlay" aria-hidden="true">
+    <article class="myth-fact-modal glass" role="dialog" aria-modal="true" aria-labelledby="mythFactModalTitle">
+      <button id="mythFactCloseBtn" class="myth-fact-close" type="button" aria-label="Close myth fact card">x</button>
+      <h3 id="mythFactModalTitle">Myth vs Fact Card</h3>
+      <div id="mythFactModalContent" class="myth-fact-card"></div>
     </article>
   </section>
 

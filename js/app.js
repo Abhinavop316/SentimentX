@@ -25,6 +25,7 @@ const els = {
   tabLoadingAnnouncer: document.getElementById("tabLoadingAnnouncer"),
   appShell: document.getElementById("appShell"),
   menuToggle: document.getElementById("menuToggle"),
+  sidebarCollapseToggle: document.getElementById("sidebarCollapseToggle"),
   sidebarBackdrop: document.getElementById("sidebarBackdrop"),
   languageFilter: document.getElementById("languageFilter"),
   regionFilter: document.getElementById("regionFilter"),
@@ -60,6 +61,9 @@ const els = {
   reportCloseBtn: document.getElementById("reportCloseBtn"),
   reportPrintBtn: document.getElementById("reportPrintBtn"),
   reportExportBtn: document.getElementById("reportExportBtn"),
+  mythFactOverlay: document.getElementById("mythFactOverlay"),
+  mythFactCloseBtn: document.getElementById("mythFactCloseBtn"),
+  mythFactModalContent: document.getElementById("mythFactModalContent"),
   reportMeta: document.getElementById("reportMeta"),
   reportKpis: document.getElementById("reportKpis"),
   reportConfidence: document.getElementById("reportConfidence"),
@@ -68,7 +72,16 @@ const els = {
   reportRiskConstituencies: document.getElementById("reportRiskConstituencies"),
   reportRiskDetail: document.getElementById("reportRiskDetail"),
   riskRanking: document.getElementById("riskRanking"),
-  confidenceMetrics: document.getElementById("confidenceMetrics")
+  confidenceMetrics: document.getElementById("confidenceMetrics"),
+  voterPulseSummary: document.getElementById("voterPulseSummary"),
+  voterChecklist: document.getElementById("voterChecklist"),
+  voterHelpline: document.getElementById("voterHelpline"),
+  misinfoWatch: document.getElementById("misinfoWatch"),
+  awarenessAdvisory: document.getElementById("awarenessAdvisory"),
+  factCheckQueue: document.getElementById("factCheckQueue"),
+  sourceTrustBoard: document.getElementById("sourceTrustBoard"),
+  mythFactCard: document.getElementById("mythFactCard"),
+  regionMisinfoHeat: document.getElementById("regionMisinfoHeat")
 };
 
 const simulator = new DataSimulator();
@@ -85,7 +98,9 @@ const ui = {
   chatMode: "chatgpt",
   prevNegativeRate: 0,
   selectedBoothId: 1,
-  reportSnapshot: null
+  reportSnapshot: null,
+  selectedClaimId: null,
+  factCheckLookup: new Map()
 };
 
 const formatPercent = (num, total) => {
@@ -174,6 +189,256 @@ const renderIssues = (issueFreq) => {
     `;
     els.trendingIssues.appendChild(card);
   });
+};
+
+const renderMisinformationWatch = (summary) => {
+  if (!els.misinfoWatch) return;
+
+  const narratives = summary.topNarratives.length
+    ? summary.topNarratives.map(([topic, count]) => `<li>${topic}: ${count} suspicious mentions</li>`).join("")
+    : "<li>No significant suspicious narrative spike detected.</li>";
+
+  els.misinfoWatch.innerHTML = `
+    <div class="metric-row">
+      <span class="metric-label">Suspicious Signal Rate</span>
+      <span class="metric-value">${summary.suspiciousRate}%</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Likely Verifiable Signals</span>
+      <span class="metric-value">${summary.verifiedLikely}</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">High-Risk Rumor Flags</span>
+      <span class="metric-value">${summary.riskCounts.high}</span>
+    </div>
+    <ul class="report-list">${narratives}</ul>
+  `;
+};
+
+const renderAwarenessAdvisory = (advisories) => {
+  if (!els.awarenessAdvisory) return;
+  els.awarenessAdvisory.innerHTML = advisories.map((tip) => `<li>${tip}</li>`).join("");
+};
+
+const renderVoterCorner = (filtered, breakdown, misinfoSummary) => {
+  if (!els.voterPulseSummary || !els.voterChecklist || !els.voterHelpline) return;
+
+  const total = breakdown.Positive + breakdown.Negative + breakdown.Neutral;
+  const mood = breakdown.Positive >= breakdown.Negative ? "Stable" : "Sensitive";
+  const integrity = misinfoSummary.suspiciousRate >= 35 ? "High caution" : misinfoSummary.suspiciousRate >= 20 ? "Moderate caution" : "Low caution";
+
+  els.voterPulseSummary.innerHTML = `
+    <div class="metric-row">
+      <span class="metric-label">Public Mood</span>
+      <span class="metric-value">${mood}</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Signals Reviewed</span>
+      <span class="metric-value">${filtered.length}</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Positive Pulse</span>
+      <span class="metric-value">${formatPercent(breakdown.Positive, total)}</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Misinformation Risk</span>
+      <span class="metric-value">${integrity}</span>
+    </div>
+  `;
+
+  els.voterChecklist.innerHTML = [
+    "Check election claims on official Election Commission channels before forwarding.",
+    "Do not trust screenshots without source links and date context.",
+    "If a message says 'urgent share', verify first, then decide.",
+    "Report suspicious election misinformation to local authorities or official grievance portals."
+  ].map((item) => `<li>${item}</li>`).join("");
+
+  els.voterHelpline.innerHTML = `
+    <article class="voter-help-card">
+      <h4>Official Verification</h4>
+      <p>Use ECI/CEO websites, district administration notices, and government helplines for fact checks.</p>
+    </article>
+    <article class="voter-help-card">
+      <h4>Safe Sharing Rule</h4>
+      <p>Share only when at least two trusted sources confirm the same information.</p>
+    </article>
+    <article class="voter-help-card">
+      <h4>Voting Preparedness</h4>
+      <p>Carry valid ID, verify booth details in advance, and follow official queue/update instructions.</p>
+    </article>
+  `;
+};
+
+const classifyClaimPriority = (entry) => {
+  let score = 0;
+  const text = entry.text.toLowerCase();
+
+  if (entry.confidence < 55) score += 2;
+  else if (entry.confidence < 65) score += 1;
+
+  if (entry.source === "Social") score += 1;
+  if (entry.sentiment === "Negative") score += 1;
+  if (/fake|viral|rumor|evm|boycott|leaked|forwarded|vote cancelled/.test(text)) score += 2;
+
+  if (score >= 5) return "critical";
+  if (score >= 3) return "high";
+  return "medium";
+};
+
+const prioritySlaMinutes = {
+  critical: 15,
+  high: 30,
+  medium: 60
+};
+
+const formatSlaState = (entry, priority, currentClock) => {
+  const ageMinutes = Math.max(0, Math.floor((currentClock - entry.timestamp) / 60000));
+  const remaining = prioritySlaMinutes[priority] - ageMinutes;
+
+  if (remaining >= 0) {
+    return `SLA: ${remaining}m left`;
+  }
+
+  return `SLA overdue by ${Math.abs(remaining)}m`;
+};
+
+const buildMythFact = (entry) => {
+  const issueFacts = {
+    inflation: "Official CPI and state bulletin trends should be checked before sharing any price panic claims.",
+    water: "Municipal water schedules and ward tanker logs are the primary verifiable sources.",
+    jobs: "Employment announcements must be validated through government recruitment portals.",
+    corruption: "Allegations should be supported by official notices, FIR records, or court filings.",
+    safety: "Safety incidents must be verified via police advisories and validated news releases.",
+    roads: "Road closure or project claims should be cross-checked with PWD/MCD updates."
+  };
+
+  return {
+    myth: entry.text,
+    fact: issueFacts[entry.issue] || "Verify through Election Commission, district administration, and official government channels.",
+    neutralAction: "Publish a neutral myth-vs-fact note and route unresolved claims to the district fact-check cell."
+  };
+};
+
+const renderMythFactCard = (entry) => {
+  if (!els.mythFactCard || !els.mythFactModalContent || !els.mythFactOverlay) return;
+
+  if (!entry) {
+    const placeholder = "<p class=\"meta\">Select a queued claim and click Generate to view a Myth vs Fact card.</p>";
+    els.mythFactCard.innerHTML = placeholder;
+    els.mythFactModalContent.innerHTML = placeholder;
+    return;
+  }
+
+  const card = buildMythFact(entry);
+  const cardMarkup = `
+    <div class="myth-fact-block">
+      <h4>Claim</h4>
+      <p>${card.myth}</p>
+    </div>
+    <div class="myth-fact-block">
+      <h4>Fact Guidance</h4>
+      <p>${card.fact}</p>
+    </div>
+    <div class="myth-fact-block">
+      <h4>Neutral Response Action</h4>
+      <p>${card.neutralAction}</p>
+    </div>
+    <small>Context: ${entry.region} | Source: ${entry.source} | Confidence: ${entry.confidence}%</small>
+  `;
+
+  els.mythFactCard.innerHTML = cardMarkup;
+  els.mythFactModalContent.innerHTML = cardMarkup;
+  els.mythFactOverlay.classList.add("open");
+  els.mythFactOverlay.setAttribute("aria-hidden", "false");
+};
+
+const renderFactCheckQueue = (entries, currentClock) => {
+  if (!els.factCheckQueue) return;
+
+  ui.factCheckLookup.clear();
+
+  const queue = entries
+    .filter((entry) => entry.confidence < 72 || (entry.source === "Social" && entry.sentiment === "Negative"))
+    .slice(0, 10)
+    .map((entry) => {
+      const priority = classifyClaimPriority(entry);
+      const advice = priority === "critical"
+        ? "Escalate to district fact-check team immediately."
+        : priority === "high"
+          ? "Escalate to district fact-check team within 30 min."
+          : "Cross-check with official bulletin before amplification.";
+      return { entry, priority, advice };
+    });
+
+  queue.forEach(({ entry }) => {
+    ui.factCheckLookup.set(entry.id, entry);
+  });
+
+  if (!ui.selectedClaimId || !ui.factCheckLookup.has(ui.selectedClaimId)) {
+    ui.selectedClaimId = queue[0]?.entry.id || null;
+  }
+
+  els.factCheckQueue.innerHTML = queue.length
+    ? queue.map(({ entry, priority, advice }) => `
+        <article class="fact-item ${priority}">
+          <strong>${entry.issue} claim | ${entry.region}</strong>
+          <div>${entry.text}</div>
+          <div class="fact-meta-row">
+            <span class="priority-badge ${priority}">${priority.toUpperCase()}</span>
+            <span class="sla-badge ${priority}">${formatSlaState(entry, priority, currentClock)}</span>
+          </div>
+          <small>Source: ${entry.source} | Confidence: ${entry.confidence}% | Action: ${advice}</small>
+          <button class="action-btn claim-generate-btn" type="button" data-generate-myth="${entry.id}">Generate Myth vs Fact</button>
+        </article>
+      `).join("")
+    : "<article class=\"fact-item medium\"><strong>No active claims in queue</strong><div>Signals are currently stable.</div></article>";
+
+  renderMythFactCard(ui.selectedClaimId ? ui.factCheckLookup.get(ui.selectedClaimId) : null);
+};
+
+const renderSourceTrustBoard = (entries) => {
+  if (!els.sourceTrustBoard) return;
+
+  const sourceMap = new Map();
+  entries.forEach((entry) => {
+    const row = sourceMap.get(entry.source) || { total: 0, confidence: 0, suspicious: 0 };
+    row.total += 1;
+    row.confidence += entry.confidence;
+    if (entry.confidence < 65 || (entry.source === "Social" && entry.sentiment === "Negative")) row.suspicious += 1;
+    sourceMap.set(entry.source, row);
+  });
+
+  const board = [...sourceMap.entries()].map(([source, row]) => {
+    const avg = row.total ? Number((row.confidence / row.total).toFixed(1)) : 0;
+    const suspiciousRate = row.total ? Math.round((row.suspicious / row.total) * 100) : 0;
+    const tier = avg >= 78 ? "high" : avg >= 66 ? "medium" : "low";
+    return { source, avg, suspiciousRate, tier, total: row.total };
+  }).sort((a, b) => b.avg - a.avg);
+
+  els.sourceTrustBoard.innerHTML = board.map((row) => `
+    <article class="source-item ${row.tier}">
+      <strong>${row.source}</strong>
+      <div>Trust score: ${row.avg}% | Suspicious share: ${row.suspiciousRate}%</div>
+      <small>Signals processed: ${row.total}</small>
+    </article>
+  `).join("");
+};
+
+const renderRegionMisinfoHeat = (rows) => {
+  if (!els.regionMisinfoHeat) return;
+
+  els.regionMisinfoHeat.innerHTML = rows.length
+    ? rows.map((row) => `
+        <article class="region-heat-item ${row.level}">
+          <div class="region-heat-head">
+            <strong>${row.region}</strong>
+            <span class="priority-badge ${row.level === "high" ? "critical" : row.level}">${row.level.toUpperCase()}</span>
+          </div>
+          <div>Suspicious rate: ${row.suspiciousRate}% (${row.suspicious}/${row.total})</div>
+          <small>Avg confidence: ${row.avgConfidence}%</small>
+        </article>
+      `).join("")
+    : "<p class=\"meta\">No region data available for current filters.</p>";
 };
 
 const renderRiskRanking = (constituency) => {
@@ -277,16 +542,20 @@ const renderReplayMeta = (history) => {
 const buildWarRoomText = () => {
   if (!ui.reportSnapshot) return "No report snapshot available.";
 
-  const { meta, totals, issues, strategies, riskConstituencies } = ui.reportSnapshot;
+  const { meta, totals, issues, strategies, riskConstituencies, misinfo, advisories } = ui.reportSnapshot;
   return [
-    "PulseMandate - Campaign War-Room Report",
+    "SentimentX - Misinformation Control Report",
     `Generated: ${meta.generatedAt}`,
     `Seed: ${meta.seed}`,
     `Scope: ${meta.scope}`,
     `Records: ${totals.total} | Positive: ${totals.positivePct} | Negative: ${totals.negativePct} | Neutral: ${totals.neutralPct}`,
+    `Suspicious signal rate: ${misinfo.suspiciousRate}% | High-risk rumor flags: ${misinfo.highRisk}`,
     "",
     "Top Issues:",
     ...issues.map((x) => `- ${x}`),
+    "",
+    "Voter Awareness Advisory:",
+    ...advisories.map((x) => `- ${x}`),
     "",
     "Immediate Strategy:",
     ...strategies.map((x) => `- ${x}`),
@@ -296,7 +565,7 @@ const buildWarRoomText = () => {
   ].join("\n");
 };
 
-const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constituency, seed }) => {
+const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constituency, seed, misinfoSummary, advisories }) => {
   const total = breakdown.Positive + breakdown.Negative + breakdown.Neutral;
   const scope = `${ui.filters.language}/${ui.filters.region}/${ui.filters.timeRangeMin}m`;
 
@@ -340,6 +609,14 @@ const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constitu
       <label>High Confidence Signals</label>
       <value>${filtered.filter(e => e.confidence >= 80).length}</value>
     </div>
+    <div class="confidence-stat">
+      <label>Suspicious Signal Rate</label>
+      <value>${misinfoSummary.suspiciousRate}%</value>
+    </div>
+    <div class="confidence-stat">
+      <label>High-Risk Rumor Flags</label>
+      <value>${misinfoSummary.riskCounts.high}</value>
+    </div>
   `;
 
   els.reportRiskDetail.innerHTML = riskRows.map((row) => `
@@ -372,7 +649,12 @@ const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constitu
       average: avgConfidence,
       dataQuality: avgConfidence >= 75 ? 'Excellent' : avgConfidence >= 65 ? 'Good' : 'Fair'
     },
+    misinfo: {
+      suspiciousRate: misinfoSummary.suspiciousRate,
+      highRisk: misinfoSummary.riskCounts.high
+    },
     issues: issueLines,
+    advisories,
     strategies: strategyLines,
     riskConstituencies: riskRows.map(r => `${r.name} - Negative ${r.negPct}`)
   };
@@ -383,6 +665,9 @@ const applyRender = () => {
   const filtered = simulator.getFilteredEntries(ui.filters);
   const breakdown = simulator.sentimentBreakdown(filtered);
   const issueFreq = simulator.issueFrequency(filtered);
+  const misinfoSummary = simulator.misinformationSummary(filtered);
+  const advisories = simulator.voterAwarenessAdvisory(filtered);
+  const regionMisinfoHeat = simulator.regionMisinformationHeat(filtered);
   const groupedBooths = simulator.groupByBooth(filtered);
   const constituency = simulator.constituencySummary(filtered);
 
@@ -398,6 +683,12 @@ const applyRender = () => {
   renderFeed(filtered);
   renderStrategies(simulator.generateStrategies(filtered));
   renderIssues(issueFreq);
+  renderVoterCorner(filtered, effectiveBreakdown, misinfoSummary);
+  renderMisinformationWatch(misinfoSummary);
+  renderAwarenessAdvisory(advisories);
+  renderFactCheckQueue(filtered, all.clock);
+  renderSourceTrustBoard(filtered);
+  renderRegionMisinfoHeat(regionMisinfoHeat);
   renderConstituencies(constituency);
   renderRiskRanking(constituency);
   renderConfidenceMetrics(filtered);
@@ -422,7 +713,9 @@ const applyRender = () => {
     issues: issueFreq,
     strategies: simulator.generateStrategies(filtered),
     constituency,
-    seed: all.seed
+    seed: all.seed,
+    misinfoSummary,
+    advisories
   });
 };
 
@@ -430,6 +723,9 @@ const onDataUpdate = (state) => {
   const meta = state.lastTickMeta;
   if (meta && meta.negativeRate - ui.prevNegativeRate > 0.18 && meta.boothSpike && meta.boothSpike.negRatio > 0.55) {
     notifyAlert(`Negative spike in Booth ${meta.boothSpike.boothId}`);
+  }
+  if (meta?.misinfoRate > 35) {
+    notifyAlert("Misinformation alert: suspicious signal rate crossed 35%.");
   }
   if (Math.random() < 0.08) {
     const boothNo = 1 + Math.floor(Math.random() * 48);
@@ -473,6 +769,35 @@ const bindTabs = () => {
       setTab(btn.dataset.tab);
       els.appShell.classList.remove("menu-open");
     });
+  });
+};
+
+const bindFactCheckActions = () => {
+  if (!els.factCheckQueue) return;
+
+  els.factCheckQueue.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-generate-myth]");
+    if (!btn) return;
+
+    const claimId = btn.getAttribute("data-generate-myth");
+    if (!claimId) return;
+
+    ui.selectedClaimId = claimId;
+    renderMythFactCard(ui.factCheckLookup.get(claimId));
+  });
+};
+
+const bindMythFactModal = () => {
+  if (!els.mythFactOverlay || !els.mythFactCloseBtn) return;
+
+  const closeModal = () => {
+    els.mythFactOverlay.classList.remove("open");
+    els.mythFactOverlay.setAttribute("aria-hidden", "true");
+  };
+
+  els.mythFactCloseBtn.addEventListener("click", closeModal);
+  els.mythFactOverlay.addEventListener("click", (event) => {
+    if (event.target === els.mythFactOverlay) closeModal();
   });
 };
 
@@ -586,6 +911,17 @@ const bindMenuToggle = () => {
   });
 };
 
+const bindSidebarCollapse = () => {
+  if (!els.sidebarCollapseToggle) return;
+
+  els.sidebarCollapseToggle.addEventListener("click", () => {
+    const collapsed = els.appShell.classList.toggle("sidebar-collapsed");
+    els.sidebarCollapseToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    els.sidebarCollapseToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    els.sidebarCollapseToggle.setAttribute("title", collapsed ? "Expand sidebar" : "Collapse sidebar");
+  });
+};
+
 const init = () => {
   charts.init();
 
@@ -597,9 +933,12 @@ const init = () => {
 
   bindTabs();
   setSidebarAccent("overview");
+  bindSidebarCollapse();
   bindMenuToggle();
   bindFilters();
   bindControls();
+  bindFactCheckActions();
+  bindMythFactModal();
   bindAssistantMode();
   bindFloatingWidget();
 

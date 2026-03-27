@@ -101,6 +101,19 @@ const ISSUE_KEYWORDS = [
   "transport"
 ];
 
+const MISINFO_TERMS = [
+  "fake",
+  "viral",
+  "rumor",
+  "forwards",
+  "forwarded",
+  "breaking",
+  "leaked",
+  "boycott",
+  "evm hacked",
+  "vote cancelled"
+];
+
 const DEFAULT_SEED = 20260317;
 
 class SeededRng {
@@ -278,6 +291,7 @@ export class DataSimulator {
     const negativeRate = recent.length
       ? recent.filter((e) => e.sentiment === "Negative").length / recent.length
       : 0;
+    const misinfoRate = this.misinformationSummary(recent).suspiciousRate;
 
     let boothSpike = null;
     const byBooth = this.groupByBooth(incoming);
@@ -290,6 +304,7 @@ export class DataSimulator {
 
     return {
       negativeRate,
+      misinfoRate,
       boothSpike
     };
   }
@@ -355,6 +370,90 @@ export class DataSimulator {
       map.set(entry.issue, (map.get(entry.issue) || 0) + 1);
     });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }
+
+  isSuspiciousEntry(entry) {
+    const text = entry.text.toLowerCase();
+    const keywordHit = MISINFO_TERMS.some((term) => text.includes(term));
+    const weakConfidence = entry.confidence < 66;
+    const sourceRisk = entry.source === "Social" && entry.sentiment === "Negative";
+    return keywordHit || weakConfidence || sourceRisk;
+  }
+
+  misinformationSummary(entries) {
+    const suspicious = entries.filter((entry) => this.isSuspiciousEntry(entry));
+
+    const riskCounts = { high: 0, medium: 0, low: 0 };
+    suspicious.forEach((entry) => {
+      if (entry.confidence < 58) riskCounts.high += 1;
+      else if (entry.confidence < 70) riskCounts.medium += 1;
+      else riskCounts.low += 1;
+    });
+
+    const narrativeMap = new Map();
+    suspicious.forEach((entry) => {
+      narrativeMap.set(entry.issue, (narrativeMap.get(entry.issue) || 0) + 1);
+    });
+
+    const topNarratives = [...narrativeMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const verifiedLikely = Math.max(entries.length - suspicious.length, 0);
+
+    return {
+      totalSignals: entries.length,
+      suspiciousCount: suspicious.length,
+      suspiciousRate: entries.length ? Number(((suspicious.length / entries.length) * 100).toFixed(1)) : 0,
+      verifiedLikely,
+      riskCounts,
+      topNarratives
+    };
+  }
+
+  regionMisinformationHeat(entries) {
+    const regionMap = new Map();
+
+    entries.forEach((entry) => {
+      const row = regionMap.get(entry.region) || { total: 0, suspicious: 0, avgConfidence: 0 };
+      row.total += 1;
+      row.avgConfidence += entry.confidence;
+      if (this.isSuspiciousEntry(entry)) row.suspicious += 1;
+      regionMap.set(entry.region, row);
+    });
+
+    return [...regionMap.entries()]
+      .map(([region, row]) => {
+        const suspiciousRate = row.total ? Math.round((row.suspicious / row.total) * 100) : 0;
+        const level = suspiciousRate >= 40 ? "high" : suspiciousRate >= 25 ? "medium" : "low";
+        return {
+          region,
+          total: row.total,
+          suspicious: row.suspicious,
+          suspiciousRate,
+          level,
+          avgConfidence: Number((row.avgConfidence / Math.max(row.total, 1)).toFixed(1))
+        };
+      })
+      .sort((a, b) => b.suspiciousRate - a.suspiciousRate);
+  }
+
+  voterAwarenessAdvisory(entries) {
+    const issues = this.issueFrequency(entries).slice(0, 3).map(([issue]) => issue);
+    const misinfo = this.misinformationSummary(entries);
+    const advisories = [
+      "Verify election-related claims from official EC/CEO channels before sharing.",
+      "Use booth-level helpdesks and voter helplines for procedural clarifications."
+    ];
+
+    if (misinfo.suspiciousRate > 32) {
+      advisories.push("High rumor velocity detected. Trigger rapid myth-vs-fact messaging in affected wards.");
+    } else {
+      advisories.push("Misinformation pressure is moderate. Maintain steady fact-check communication cadence.");
+    }
+
+    if (issues.length) {
+      advisories.push(`Prioritize awareness messaging around: ${issues.join(", ")}.`);
+    }
+
+    return advisories.slice(0, 4);
   }
 
   groupByBooth(entries) {
