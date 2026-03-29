@@ -1,416 +1,546 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SentimentX | Voter Awareness & Misinformation Control</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-<body>
-  <div id="tabLoadingAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
-  <div class="app-shell" id="appShell">
-    <aside class="sidebar glass">
-      <div class="sidebar-head">
-        <div class="brand-wrap">
-          <button id="sidebarCollapseToggle" class="brand-badge brand-toggle-btn" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">🧠</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SentimentX | Voter Awareness & Misinformation Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <div
+      id="tabLoadingAnnouncer"
+      class="sr-only"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+    <div class="app-shell" id="appShell">
+      <aside class="sidebar glass">
+        <div class="sidebar-head">
+          <div class="brand-wrap">
+            <button
+              id="sidebarCollapseToggle"
+              class="brand-badge brand-toggle-btn"
+              type="button"
+              aria-label="Collapse sidebar"
+              aria-expanded="true"
+              title="Collapse sidebar"
+            >
+              🧠
+            </button>
+            <div>
+              <h1>SentimentX</h1>
+              <p id="sidebarTagline">Voter Awareness Command Grid</p>
+            </div>
+          </div>
+        </div>
+
+        <nav class="tab-nav" aria-label="Dashboard tabs">
+          <button
+            class="tab-link active"
+            data-tab="overview"
+            data-accent="#2563eb"
+            data-accent-rgb="37 99 235"
+          >
+            <i data-lucide="layout-dashboard"></i><span>Overview</span>
+          </button>
+          <button
+            class="tab-link"
+            data-tab="voter"
+            data-accent="#0f766e"
+            data-accent-rgb="15 118 110"
+          >
+            <i data-lucide="users"></i><span>Voter Corner</span>
+          </button>
+          <button
+            class="tab-link"
+            data-tab="booth"
+            data-accent="#0d9488"
+            data-accent-rgb="13 148 136"
+          >
+            <i data-lucide="map"></i><span>Booth Analysis</span>
+          </button>
+          <button
+            class="tab-link"
+            data-tab="constituency"
+            data-accent="#ea580c"
+            data-accent-rgb="234 88 12"
+          >
+            <i data-lucide="activity"></i><span>Constituency Analysis</span>
+          </button>
+          <button
+            class="tab-link"
+            data-tab="trends"
+            data-accent="#ca8a04"
+            data-accent-rgb="202 138 4"
+          >
+            <i data-lucide="alert-triangle"></i
+            ><span>Integrity &amp; Awareness</span>
+          </button>
+          <button
+            class="tab-link"
+            data-tab="factcheck"
+            data-accent="#2563eb"
+            data-accent-rgb="37 99 235"
+          >
+            <i data-lucide="shield-check"></i><span>Fact Check Hub</span>
+          </button>
+          <button
+            class="tab-link"
+            data-tab="assistant"
+            data-accent="#9333ea"
+            data-accent-rgb="147 51 234"
+          >
+            <i data-lucide="brain"></i><span>Awareness AI Assistant</span>
+          </button>
+        </nav>
+
+        <section class="controls-block sidebar-controls">
+          <details class="control-dropdown" open>
+            <summary>Filters</summary>
+            <div class="dropdown-grid">
+              <label>
+                Language
+                <select id="languageFilter">
+                  <option value="all">All</option>
+                  <option value="English">English</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Hinglish">Hinglish</option>
+                </select>
+              </label>
+              <label>
+                Region
+                <select id="regionFilter">
+                  <option value="all">All</option>
+                  <option value="North">North</option>
+                  <option value="South">South</option>
+                  <option value="East">East</option>
+                  <option value="West">West</option>
+                  <option value="Central">Central</option>
+                </select>
+              </label>
+              <label>
+                Time Range
+                <select id="timeFilter">
+                  <option value="15">Last 15 min</option>
+                  <option value="60" selected>Last 60 min</option>
+                  <option value="240">Last 4 hours</option>
+                  <option value="1440">Last 24 hours</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details class="control-dropdown" open>
+            <summary>Controls & Exports</summary>
+            <div class="dropdown-grid">
+              <div class="switch-row">
+                <span>Demo Mode</span>
+                <button
+                  id="demoModeToggle"
+                  class="pill-btn"
+                  aria-pressed="false"
+                >
+                  Low Activity
+                </button>
+              </div>
+
+              <div class="switch-row">
+                <span>Theme</span>
+                <button id="themeToggle" class="pill-btn" aria-pressed="false">
+                  Dark
+                </button>
+              </div>
+
+              <button id="exportCsvBtn" class="action-btn">Export CSV</button>
+              <button id="warRoomBtn" class="action-btn">
+                War-Room Report
+              </button>
+              <button id="autoTourBtn" class="action-btn">
+                Auto Demo Tour (90s)
+              </button>
+            </div>
+          </details>
+        </section>
+      </aside>
+      <button
+        id="sidebarBackdrop"
+        class="sidebar-backdrop"
+        aria-label="Close sidebar"
+      ></button>
+
+      <main class="main-area">
+        <header class="topbar glass">
+          <button
+            id="menuToggle"
+            class="menu-toggle"
+            aria-label="Toggle sidebar"
+          >
+            <i data-lucide="menu"></i>
+          </button>
           <div>
-            <h1>SentimentX</h1>
-            <p id="sidebarTagline">Voter Awareness Command Grid</p>
+            <p class="meta">Neutral Civic Insight Console</p>
+            <h2 id="activeTabTitle">Overview</h2>
+            <p class="meta">
+              Domain 2 Mode: Voter Awareness &amp; Misinformation Control
+            </p>
           </div>
-        </div>
-      </div>
-
-      <nav class="tab-nav" aria-label="Dashboard tabs">
-        <button class="tab-link active" data-tab="overview" data-accent="#2563eb" data-accent-rgb="37 99 235"><i data-lucide="layout-dashboard"></i><span>Overview</span></button>
-        <button class="tab-link" data-tab="voter" data-accent="#0f766e" data-accent-rgb="15 118 110"><i data-lucide="users"></i><span>Voter Corner</span></button>
-        <button class="tab-link" data-tab="booth" data-accent="#0d9488" data-accent-rgb="13 148 136"><i data-lucide="map"></i><span>Booth Analysis</span></button>
-        <button class="tab-link" data-tab="constituency" data-accent="#ea580c" data-accent-rgb="234 88 12"><i data-lucide="activity"></i><span>Constituency Analysis</span></button>
-        <button class="tab-link" data-tab="trends" data-accent="#ca8a04" data-accent-rgb="202 138 4"><i data-lucide="alert-triangle"></i><span>Integrity &amp; Awareness</span></button>
-        <button class="tab-link" data-tab="factcheck" data-accent="#2563eb" data-accent-rgb="37 99 235"><i data-lucide="shield-check"></i><span>Fact Check Hub</span></button>
-        <button class="tab-link" data-tab="assistant" data-accent="#9333ea" data-accent-rgb="147 51 234"><i data-lucide="brain"></i><span>Awareness AI Assistant</span></button>
-      </nav>
-
-      <section class="controls-block sidebar-controls">
-        <details class="control-dropdown" open>
-          <summary>Filters</summary>
-          <div class="dropdown-grid">
-            <label>
-              Language
-              <select id="languageFilter">
-                <option value="all">All</option>
-                <option value="English">English</option>
-                <option value="Hindi">Hindi</option>
-                <option value="Hinglish">Hinglish</option>
-              </select>
-            </label>
-            <label>
-              Region
-              <select id="regionFilter">
-                <option value="all">All</option>
-                <option value="North">North</option>
-                <option value="South">South</option>
-                <option value="East">East</option>
-                <option value="West">West</option>
-                <option value="Central">Central</option>
-              </select>
-            </label>
-            <label>
-              Time Range
-              <select id="timeFilter">
-                <option value="15">Last 15 min</option>
-                <option value="60" selected>Last 60 min</option>
-                <option value="240">Last 4 hours</option>
-                <option value="1440">Last 24 hours</option>
-              </select>
-            </label>
+          <div class="kpi-strip" id="kpiStrip">
+            <div class="kpi-card">
+              <p>Total Signals</p>
+              <strong id="kpiTotal">0</strong>
+            </div>
+            <div class="kpi-card positive">
+              <p>Positive</p>
+              <strong id="kpiPositive">0%</strong>
+            </div>
+            <div class="kpi-card negative">
+              <p>Negative</p>
+              <strong id="kpiNegative">0%</strong>
+            </div>
+            <div class="kpi-card neutral">
+              <p>Neutral</p>
+              <strong id="kpiNeutral">0%</strong>
+            </div>
           </div>
-        </details>
+        </header>
 
-        <details class="control-dropdown" open>
-          <summary>Controls & Exports</summary>
-          <div class="dropdown-grid">
-            <div class="switch-row">
-              <span>Demo Mode</span>
-              <button id="demoModeToggle" class="pill-btn" aria-pressed="false">Low Activity</button>
+        <div class="content-scroll" id="contentScroll">
+          <section class="tab-view active" id="overview" role="tabpanel">
+            <div class="grid-two">
+              <article class="panel glass chart-panel">
+                <div class="panel-head">
+                  <h3>Sentiment Mix</h3>
+                  <span class="badge">AI Weighted</span>
+                </div>
+                <canvas id="sentimentPie"></canvas>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Risk Ranking</h3>
+                  <span class="badge">Constituency Alert</span>
+                </div>
+                <div id="riskRanking" class="risk-ranking-list"></div>
+              </article>
+            </div>
+            <div class="grid-two">
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Live Feed</h3>
+                  <span class="badge pulse-dot">Streaming</span>
+                </div>
+                <ul id="liveFeed" class="feed-list"></ul>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Confidence Metrics</h3>
+                  <span class="badge">Data Quality</span>
+                </div>
+                <div id="confidenceMetrics" class="confidence-metrics"></div>
+              </article>
             </div>
 
-            <div class="switch-row">
-              <span>Theme</span>
-              <button id="themeToggle" class="pill-btn" aria-pressed="false">Dark</button>
+            <div class="grid-two">
+              <article class="panel glass chart-panel">
+                <div class="panel-head">
+                  <h3>Sentiment Trend</h3>
+                  <span class="badge">Timeline</span>
+                </div>
+                <canvas id="trendLine"></canvas>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Strategy Suggestions</h3>
+                  <span class="badge">AI Planner</span>
+                </div>
+                <ul id="strategyList" class="strategy-list"></ul>
+              </article>
+            </div>
+          </section>
+
+          <section class="tab-view" id="voter" role="tabpanel">
+            <div class="grid-two">
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Public Pulse Snapshot</h3>
+                  <span class="badge">Citizen Friendly</span>
+                </div>
+                <div id="voterPulseSummary" class="voter-pulse-summary"></div>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Before You Share</h3>
+                  <span class="badge">Voter Checklist</span>
+                </div>
+                <ul id="voterChecklist" class="voter-checklist"></ul>
+              </article>
             </div>
 
-            <button id="exportCsvBtn" class="action-btn">Export CSV</button>
-            <button id="warRoomBtn" class="action-btn">War-Room Report</button>
-          </div>
-        </details>
-      </section>
-    </aside>
-    <button id="sidebarBackdrop" class="sidebar-backdrop" aria-label="Close sidebar"></button>
+            <article class="panel glass">
+              <div class="panel-head">
+                <h3>Help & Verification</h3>
+                <span class="badge">Safe Voting Info</span>
+              </div>
+              <div id="voterHelpline" class="voter-helpline-grid"></div>
+            </article>
+          </section>
 
-    <main class="main-area">
-      <header class="topbar glass">
-        <button id="menuToggle" class="menu-toggle" aria-label="Toggle sidebar"><i data-lucide="menu"></i></button>
-        <div>
-          <p class="meta">Neutral Civic Insight Console</p>
-          <h2 id="activeTabTitle">Overview</h2>
-          <p class="meta">Domain 2 Mode: Voter Awareness &amp; Misinformation Control</p>
+          <section class="tab-view" id="booth" role="tabpanel">
+            <div class="grid-two">
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Booth Heatmap</h3>
+                  <span class="badge">Click for micro-insights</span>
+                </div>
+                <div id="heatmapGrid" class="heatmap-grid"></div>
+              </article>
+
+              <article class="panel glass" id="boothInsightPanel">
+                <div class="panel-head">
+                  <h3>Booth Micro-Insights</h3>
+                  <span class="badge">Actionable</span>
+                </div>
+                <div id="boothInsightContent" class="insight-content">
+                  Select a booth from the heatmap to see sentiment breakdown,
+                  top complaints, and campaign recommendations.
+                </div>
+              </article>
+            </div>
+
+            <article class="panel glass">
+              <div class="panel-head">
+                <h3>Region-Wise Misinformation Heat Layer</h3>
+                <span class="badge">Critical / High / Medium</span>
+              </div>
+              <div id="regionMisinfoHeat" class="region-heat-layer"></div>
+            </article>
+          </section>
+
+          <section class="tab-view" id="constituency" role="tabpanel">
+            <div class="grid-two">
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Constituency Intelligence</h3>
+                  <span class="badge">Regional Split</span>
+                </div>
+                <div id="constituencyCards" class="constituency-cards"></div>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Replay Timeline</h3>
+                  <span class="badge">Historical View</span>
+                </div>
+                <label class="replay-wrap">
+                  <span>Replay Position</span>
+                  <input
+                    id="timelineSlider"
+                    type="range"
+                    min="0"
+                    max="0"
+                    value="0"
+                  />
+                  <small id="timelineStamp">Latest</small>
+                </label>
+              </article>
+            </div>
+          </section>
+
+          <section class="tab-view" id="trends" role="tabpanel">
+            <div class="grid-two">
+              <article class="panel glass chart-panel">
+                <div class="panel-head">
+                  <h3>Issue Frequency</h3>
+                  <span class="badge">Keyword Extraction</span>
+                </div>
+                <canvas id="issueBar"></canvas>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Trending Issues</h3>
+                  <span class="badge">Dynamic</span>
+                </div>
+                <div id="trendingIssues" class="issues-wrap"></div>
+              </article>
+            </div>
+
+            <div class="grid-two">
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Misinformation Watch</h3>
+                  <span class="badge">Near Real-Time</span>
+                </div>
+                <div id="misinfoWatch" class="misinfo-watch"></div>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Voter Awareness Advisory</h3>
+                  <span class="badge">Neutral Guidance</span>
+                </div>
+                <ul id="awarenessAdvisory" class="advisory-list"></ul>
+              </article>
+            </div>
+          </section>
+
+          <section class="tab-view" id="assistant" role="tabpanel">
+            <article class="panel glass full-height">
+              <div class="panel-head">
+                <h3>AI Political Assistant</h3>
+                <div class="mode-toggle">
+                  <button class="pill-btn mode-btn active" data-mode="chatgpt">
+                    ChatGPT Mode
+                  </button>
+                  <button class="pill-btn mode-btn" data-mode="gemini">
+                    Gemini Mode
+                  </button>
+                </div>
+              </div>
+              <div id="assistantMessages" class="chat-messages"></div>
+              <form id="assistantForm" class="chat-form">
+                <input
+                  id="assistantInput"
+                  type="text"
+                  placeholder="Ask: What is sentiment in North constituency?"
+                  required
+                />
+                <button type="submit" class="action-btn">Send</button>
+              </form>
+            </article>
+          </section>
+
+          <section class="tab-view" id="factcheck" role="tabpanel">
+            <div class="grid-two">
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Claim Verification Queue</h3>
+                  <span class="badge">Priority Review</span>
+                </div>
+                <div id="factCheckQueue" class="fact-check-queue"></div>
+              </article>
+
+              <article class="panel glass">
+                <div class="panel-head">
+                  <h3>Source Reliability Board</h3>
+                  <span class="badge">Trust Index</span>
+                </div>
+                <div id="sourceTrustBoard" class="source-trust-board"></div>
+              </article>
+            </div>
+
+            <article class="panel glass">
+              <div class="panel-head">
+                <h3>Myth vs Fact Card</h3>
+                <span class="badge">One-Click Generator</span>
+              </div>
+              <div id="mythFactCard" class="myth-fact-card"></div>
+            </article>
+          </section>
         </div>
-        <div class="kpi-strip" id="kpiStrip">
-          <div class="kpi-card">
-            <p>Total Signals</p>
-            <strong id="kpiTotal">0</strong>
+      </main>
+    </div>
+
+    <div id="alertContainer" class="alert-container" aria-live="polite"></div>
+
+    <section id="warRoomOverlay" class="report-overlay" aria-hidden="true">
+      <article class="report-sheet glass" id="warRoomSheet">
+        <header class="report-head">
+          <div>
+            <p class="meta">Voter Awareness & Integrity Snapshot</p>
+            <h3>Misinformation Control Report</h3>
           </div>
-          <div class="kpi-card positive">
-            <p>Positive</p>
-            <strong id="kpiPositive">0%</strong>
+          <div class="report-actions no-print">
+            <button id="reportPrintBtn" class="pill-btn" type="button">
+              Print
+            </button>
+            <button id="reportExportBtn" class="pill-btn" type="button">
+              Export TXT
+            </button>
+            <button id="reportCloseBtn" class="pill-btn" type="button">
+              Close
+            </button>
           </div>
-          <div class="kpi-card negative">
-            <p>Negative</p>
-            <strong id="kpiNegative">0%</strong>
-          </div>
-          <div class="kpi-card neutral">
-            <p>Neutral</p>
-            <strong id="kpiNeutral">0%</strong>
-          </div>
+        </header>
+
+        <div class="report-meta" id="reportMeta"></div>
+        <div class="report-kpis" id="reportKpis"></div>
+        <div class="report-confidence" id="reportConfidence"></div>
+
+        <div class="grid-two report-grid">
+          <section>
+            <h4>Risk Constituencies (Top 5)</h4>
+            <div id="reportRiskDetail" class="report-risk-detail"></div>
+          </section>
+          <section>
+            <h4>Top Issues</h4>
+            <ul id="reportIssues" class="report-list"></ul>
+          </section>
         </div>
+
+        <div class="grid-two report-grid">
+          <section>
+            <h4>Immediate Strategy</h4>
+            <ul id="reportStrategies" class="report-list"></ul>
+          </section>
+        </div>
+
+        <section>
+          <h4>Constituencies At Risk</h4>
+          <div id="reportRiskConstituencies" class="report-risk"></div>
+        </section>
+      </article>
+    </section>
+
+    <section id="mythFactOverlay" class="myth-fact-overlay" aria-hidden="true">
+      <article
+        class="myth-fact-modal glass"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mythFactModalTitle"
+      >
+        <button
+          id="mythFactCloseBtn"
+          class="myth-fact-close"
+          type="button"
+          aria-label="Close myth fact card"
+        >
+          x
+        </button>
+        <h3 id="mythFactModalTitle">Myth vs Fact Card</h3>
+        <div id="mythFactModalContent" class="myth-fact-card"></div>
+      </article>
+    </section>
+
+    <button id="chatFab" class="chat-fab" aria-label="Open chatbot">AI</button>
+    <section id="chatWidget" class="chat-widget glass" aria-hidden="true">
+      <header>
+        <h4>Quick AI Brief</h4>
+        <button id="chatWidgetClose" aria-label="Close chatbot">x</button>
       </header>
+      <div id="widgetMessages" class="chat-messages compact"></div>
+      <form id="widgetForm" class="chat-form">
+        <input
+          id="widgetInput"
+          type="text"
+          placeholder="Ask constituency pulse"
+          required
+        />
+        <button type="submit">Go</button>
+      </form>
+    </section>
 
-      <div class="content-scroll" id="contentScroll">
-      <section class="tab-view active" id="overview" role="tabpanel">
-        <div class="grid-two">
-          <article class="panel glass chart-panel">
-            <div class="panel-head">
-              <h3>Sentiment Mix</h3>
-              <span class="badge">AI Weighted</span>
-            </div>
-            <canvas id="sentimentPie"></canvas>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Risk Ranking</h3>
-              <span class="badge">Constituency Alert</span>
-            </div>
-            <div id="riskRanking" class="risk-ranking-list"></div>
-          </article>
-        </div>
-        <div class="grid-two">
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Live Feed</h3>
-              <span class="badge pulse-dot">Streaming</span>
-            </div>
-            <ul id="liveFeed" class="feed-list"></ul>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Confidence Metrics</h3>
-              <span class="badge">Data Quality</span>
-            </div>
-            <div id="confidenceMetrics" class="confidence-metrics"></div>
-          </article>
-        </div>
-
-        <div class="grid-two">
-          <article class="panel glass chart-panel">
-            <div class="panel-head">
-              <h3>Sentiment Trend</h3>
-              <span class="badge">Timeline</span>
-            </div>
-            <canvas id="trendLine"></canvas>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Strategy Suggestions</h3>
-              <span class="badge">AI Planner</span>
-            </div>
-            <ul id="strategyList" class="strategy-list"></ul>
-          </article>
-        </div>
-      </section>
-
-      <section class="tab-view" id="voter" role="tabpanel">
-        <div class="grid-two">
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Public Pulse Snapshot</h3>
-              <span class="badge">Citizen Friendly</span>
-            </div>
-            <div id="voterPulseSummary" class="voter-pulse-summary"></div>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Before You Share</h3>
-              <span class="badge">Voter Checklist</span>
-            </div>
-            <ul id="voterChecklist" class="voter-checklist"></ul>
-          </article>
-        </div>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <h3>Help & Verification</h3>
-            <span class="badge">Safe Voting Info</span>
-          </div>
-          <div id="voterHelpline" class="voter-helpline-grid"></div>
-        </article>
-      </section>
-
-      <section class="tab-view" id="booth" role="tabpanel">
-        <div class="grid-two">
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Booth Heatmap</h3>
-              <span class="badge">Click for micro-insights</span>
-            </div>
-            <div id="heatmapGrid" class="heatmap-grid"></div>
-          </article>
-
-          <article class="panel glass" id="boothInsightPanel">
-            <div class="panel-head">
-              <h3>Booth Micro-Insights</h3>
-              <span class="badge">Actionable</span>
-            </div>
-            <div id="boothInsightContent" class="insight-content">
-              Select a booth from the heatmap to see sentiment breakdown, top complaints, and campaign recommendations.
-            </div>
-          </article>
-        </div>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <h3>Region-Wise Misinformation Heat Layer</h3>
-            <span class="badge">Critical / High / Medium</span>
-          </div>
-          <div id="regionMisinfoHeat" class="region-heat-layer"></div>
-        </article>
-      </section>
-
-      <section class="tab-view" id="constituency" role="tabpanel">
-        <div class="grid-two">
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Constituency Intelligence</h3>
-              <span class="badge">Regional Split</span>
-            </div>
-            <div id="constituencyCards" class="constituency-cards"></div>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Replay Timeline</h3>
-              <span class="badge">Historical View</span>
-            </div>
-            <label class="replay-wrap">
-              <span>Replay Position</span>
-              <input id="timelineSlider" type="range" min="0" max="0" value="0" />
-              <small id="timelineStamp">Latest</small>
-            </label>
-          </article>
-        </div>
-      </section>
-
-      <section class="tab-view" id="trends" role="tabpanel">
-        <div class="grid-two">
-          <article class="panel glass chart-panel">
-            <div class="panel-head">
-              <h3>Issue Frequency</h3>
-              <span class="badge">Keyword Extraction</span>
-            </div>
-            <canvas id="issueBar"></canvas>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Trending Issues</h3>
-              <span class="badge">Dynamic</span>
-            </div>
-            <div id="trendingIssues" class="issues-wrap"></div>
-          </article>
-        </div>
-
-        <div class="grid-two">
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Misinformation Watch</h3>
-              <span class="badge">Near Real-Time</span>
-            </div>
-            <div id="misinfoWatch" class="misinfo-watch"></div>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Voter Awareness Advisory</h3>
-              <span class="badge">Neutral Guidance</span>
-            </div>
-            <ul id="awarenessAdvisory" class="advisory-list"></ul>
-          </article>
-        </div>
-      </section>
-
-      <section class="tab-view" id="assistant" role="tabpanel">
-        <article class="panel glass full-height">
-          <div class="panel-head">
-            <h3>AI Political Assistant</h3>
-            <div class="mode-toggle">
-              <button class="pill-btn mode-btn active" data-mode="chatgpt">ChatGPT Mode</button>
-              <button class="pill-btn mode-btn" data-mode="gemini">Gemini Mode</button>
-            </div>
-          </div>
-          <div id="assistantMessages" class="chat-messages"></div>
-          <form id="assistantForm" class="chat-form">
-            <input id="assistantInput" type="text" placeholder="Ask: What is sentiment in North constituency?" required />
-            <button type="submit" class="action-btn">Send</button>
-          </form>
-        </article>
-      </section>
-
-      <section class="tab-view" id="factcheck" role="tabpanel">
-        <div class="grid-two">
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Claim Verification Queue</h3>
-              <span class="badge">Priority Review</span>
-            </div>
-            <div id="factCheckQueue" class="fact-check-queue"></div>
-          </article>
-
-          <article class="panel glass">
-            <div class="panel-head">
-              <h3>Source Reliability Board</h3>
-              <span class="badge">Trust Index</span>
-            </div>
-            <div id="sourceTrustBoard" class="source-trust-board"></div>
-          </article>
-        </div>
-
-        <article class="panel glass">
-          <div class="panel-head">
-            <h3>Myth vs Fact Card</h3>
-            <span class="badge">One-Click Generator</span>
-          </div>
-          <div id="mythFactCard" class="myth-fact-card"></div>
-        </article>
-      </section>
-      </div>
-    </main>
-  </div>
-
-  <div id="alertContainer" class="alert-container" aria-live="polite"></div>
-
-  <section id="warRoomOverlay" class="report-overlay" aria-hidden="true">
-    <article class="report-sheet glass" id="warRoomSheet">
-      <header class="report-head">
-        <div>
-          <p class="meta">Voter Awareness & Integrity Snapshot</p>
-          <h3>Misinformation Control Report</h3>
-        </div>
-        <div class="report-actions no-print">
-          <button id="reportPrintBtn" class="pill-btn" type="button">Print</button>
-          <button id="reportExportBtn" class="pill-btn" type="button">Export TXT</button>
-          <button id="reportCloseBtn" class="pill-btn" type="button">Close</button>
-        </div>
-      </header>
-
-      <div class="report-meta" id="reportMeta"></div>
-      <div class="report-kpis" id="reportKpis"></div>
-      <div class="report-confidence" id="reportConfidence"></div>
-
-      <div class="grid-two report-grid">
-        <section>
-          <h4>Risk Constituencies (Top 5)</h4>
-          <div id="reportRiskDetail" class="report-risk-detail"></div>
-        </section>
-        <section>
-          <h4>Top Issues</h4>
-          <ul id="reportIssues" class="report-list"></ul>
-        </section>
-      </div>
-
-      <div class="grid-two report-grid">
-        <section>
-          <h4>Immediate Strategy</h4>
-          <ul id="reportStrategies" class="report-list"></ul>
-        </section>
-      </div>
-
-      <section>
-        <h4>Constituencies At Risk</h4>
-        <div id="reportRiskConstituencies" class="report-risk"></div>
-      </section>
-    </article>
-  </section>
-
-  <section id="mythFactOverlay" class="myth-fact-overlay" aria-hidden="true">
-    <article class="myth-fact-modal glass" role="dialog" aria-modal="true" aria-labelledby="mythFactModalTitle">
-      <button id="mythFactCloseBtn" class="myth-fact-close" type="button" aria-label="Close myth fact card">x</button>
-      <h3 id="mythFactModalTitle">Myth vs Fact Card</h3>
-      <div id="mythFactModalContent" class="myth-fact-card"></div>
-    </article>
-  </section>
-
-  <button id="chatFab" class="chat-fab" aria-label="Open chatbot">AI</button>
-  <section id="chatWidget" class="chat-widget glass" aria-hidden="true">
-    <header>
-      <h4>Quick AI Brief</h4>
-      <button id="chatWidgetClose" aria-label="Close chatbot">x</button>
-    </header>
-    <div id="widgetMessages" class="chat-messages compact"></div>
-    <form id="widgetForm" class="chat-form">
-      <input id="widgetInput" type="text" placeholder="Ask constituency pulse" required />
-      <button type="submit">Go</button>
-    </form>
-  </section>
-
-  <script type="module" src="js/app.js"></script>
-</body>
+    <script type="module" src="js/app.js"></script>
+  </body>
 </html>

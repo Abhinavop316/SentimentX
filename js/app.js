@@ -11,11 +11,13 @@ const debounce = (fn, delay = 220) => {
   };
 };
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const storage = {
   getTheme: () => localStorage.getItem("pm_theme") || "light",
   setTheme: (v) => localStorage.setItem("pm_theme", v),
   getDemoMode: () => localStorage.getItem("pm_demo_mode") || "low",
-  setDemoMode: (v) => localStorage.setItem("pm_demo_mode", v)
+  setDemoMode: (v) => localStorage.setItem("pm_demo_mode", v),
 };
 
 const els = {
@@ -47,6 +49,7 @@ const els = {
   demoModeToggle: document.getElementById("demoModeToggle"),
   exportCsvBtn: document.getElementById("exportCsvBtn"),
   warRoomBtn: document.getElementById("warRoomBtn"),
+  autoTourBtn: document.getElementById("autoTourBtn"),
   modeButtons: [...document.querySelectorAll(".mode-btn")],
   assistantForm: document.getElementById("assistantForm"),
   assistantInput: document.getElementById("assistantInput"),
@@ -81,7 +84,7 @@ const els = {
   factCheckQueue: document.getElementById("factCheckQueue"),
   sourceTrustBoard: document.getElementById("sourceTrustBoard"),
   mythFactCard: document.getElementById("mythFactCard"),
-  regionMisinfoHeat: document.getElementById("regionMisinfoHeat")
+  regionMisinfoHeat: document.getElementById("regionMisinfoHeat"),
 };
 
 const simulator = new DataSimulator();
@@ -92,7 +95,7 @@ const ui = {
   filters: {
     language: "all",
     region: "all",
-    timeRangeMin: Number(els.timeFilter.value)
+    timeRangeMin: Number(els.timeFilter.value),
   },
   replayIndex: null,
   chatMode: "chatgpt",
@@ -100,7 +103,130 @@ const ui = {
   selectedBoothId: 1,
   reportSnapshot: null,
   selectedClaimId: null,
-  factCheckLookup: new Map()
+  factCheckLookup: new Map(),
+  autoTourToken: null,
+  autoTourRunning: false,
+};
+
+const setAutoTourButtonState = (running) => {
+  if (!els.autoTourBtn) return;
+  els.autoTourBtn.textContent = running
+    ? "Stop Auto Demo Tour"
+    : "Auto Demo Tour (90s)";
+  els.autoTourBtn.setAttribute("aria-pressed", running ? "true" : "false");
+};
+
+const cancelAutoDemoTour = (showToast = true) => {
+  if (!ui.autoTourRunning) return;
+
+  ui.autoTourRunning = false;
+  ui.autoTourToken = null;
+  setAutoTourButtonState(false);
+
+  if (showToast) {
+    notifyAlert("Auto Demo Tour stopped.");
+  }
+};
+
+const runAutoDemoTour = async () => {
+  if (ui.autoTourRunning) {
+    cancelAutoDemoTour(true);
+    return;
+  }
+
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  ui.autoTourToken = token;
+  ui.autoTourRunning = true;
+  setAutoTourButtonState(true);
+
+  const isCurrent = () => ui.autoTourRunning && ui.autoTourToken === token;
+  const guardedWait = async (ms) => {
+    await wait(ms);
+    if (!isCurrent()) {
+      throw new Error("AUTO_TOUR_CANCELLED");
+    }
+  };
+
+  const gotoTab = (tabName, narration) => {
+    setTab(tabName);
+    if (narration) notifyAlert(`Auto Tour: ${narration}`);
+  };
+
+  try {
+    setDemoMode("high");
+    setTheme("dark");
+    notifyAlert("Auto Tour started: 90-second hands-free walkthrough.");
+
+    gotoTab("overview", "Live sentiment intelligence and KPI pulse.");
+    await guardedWait(10000);
+
+    els.languageFilter.value = "Hindi";
+    els.regionFilter.value = "North";
+    els.timeFilter.value = "60";
+    ui.filters.language = "Hindi";
+    ui.filters.region = "North";
+    ui.filters.timeRangeMin = 60;
+    applyRender();
+    gotoTab("voter", "Citizen safeguards and awareness checklist.");
+    await guardedWait(10000);
+
+    ui.selectedBoothId = 12;
+    applyRender();
+    gotoTab("booth", "Booth-level heatmap with micro-insights.");
+    await guardedWait(14000);
+
+    gotoTab("trends", "Issue trends and misinformation watch.");
+    await guardedWait(12000);
+
+    gotoTab("factcheck", "Claim verification queue and source trust board.");
+    const firstClaimId = [...ui.factCheckLookup.keys()][0];
+    if (firstClaimId) {
+      ui.selectedClaimId = firstClaimId;
+      renderMythFactCard(ui.factCheckLookup.get(firstClaimId), true);
+    }
+    await guardedWait(12000);
+
+    if (els.mythFactOverlay?.classList.contains("open")) {
+      els.mythFactOverlay.classList.remove("open");
+      els.mythFactOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    gotoTab("constituency", "Constituency risk split and replay timeline.");
+    const max = Number(els.timelineSlider.max || 0);
+    if (max > 2) {
+      els.timelineSlider.value = String(Math.max(0, max - 2));
+      els.timelineSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    await guardedWait(12000);
+
+    gotoTab("assistant", "AI assistant for briefing-style answers.");
+    els.modeButtons.forEach((node) =>
+      node.classList.toggle("active", node.dataset.mode === "gemini"),
+    );
+    ui.chatMode = "gemini";
+    await guardedWait(10000);
+
+    gotoTab("overview", "Final summary with printable war-room report.");
+    els.warRoomOverlay.classList.add("open");
+    els.warRoomOverlay.setAttribute("aria-hidden", "false");
+    await guardedWait(10000);
+
+    els.warRoomOverlay.classList.remove("open");
+    els.warRoomOverlay.setAttribute("aria-hidden", "true");
+
+    setDemoMode("low");
+    notifyAlert("Auto Tour complete. Ready for Q&A.");
+  } catch (error) {
+    if (error.message !== "AUTO_TOUR_CANCELLED") {
+      notifyAlert("Auto Tour encountered a minor issue and was stopped.");
+    }
+  } finally {
+    if (ui.autoTourToken === token) {
+      ui.autoTourRunning = false;
+      ui.autoTourToken = null;
+      setAutoTourButtonState(false);
+    }
+  }
 };
 
 const formatPercent = (num, total) => {
@@ -119,20 +245,30 @@ const setSidebarAccent = (tabName) => {
     document.documentElement.style.setProperty("--sidebar-accent", accent);
   }
   if (accentRgb) {
-    document.documentElement.style.setProperty("--sidebar-accent-rgb", accentRgb);
+    document.documentElement.style.setProperty(
+      "--sidebar-accent-rgb",
+      accentRgb,
+    );
   }
 };
 
 const setTheme = (theme) => {
   document.body.dataset.theme = theme;
   els.themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
-  els.themeToggle.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+  els.themeToggle.setAttribute(
+    "aria-pressed",
+    theme === "dark" ? "true" : "false",
+  );
   storage.setTheme(theme);
 };
 
 const setDemoMode = (mode) => {
-  els.demoModeToggle.textContent = mode === "high" ? "High Activity" : "Low Activity";
-  els.demoModeToggle.setAttribute("aria-pressed", mode === "high" ? "true" : "false");
+  els.demoModeToggle.textContent =
+    mode === "high" ? "High Activity" : "Low Activity";
+  els.demoModeToggle.setAttribute(
+    "aria-pressed",
+    mode === "high" ? "true" : "false",
+  );
   storage.setDemoMode(mode);
   simulator.setDemoMode(mode);
 };
@@ -151,7 +287,12 @@ const renderFeed = (entries) => {
     const li = document.createElement("li");
     li.className = "feed-item";
 
-    const confidenceLevel = entry.confidence >= 80 ? "high" : entry.confidence >= 60 ? "medium" : "low";
+    const confidenceLevel =
+      entry.confidence >= 80
+        ? "high"
+        : entry.confidence >= 60
+          ? "medium"
+          : "low";
 
     li.innerHTML = `
       <div class="feed-meta">
@@ -195,7 +336,11 @@ const renderMisinformationWatch = (summary) => {
   if (!els.misinfoWatch) return;
 
   const narratives = summary.topNarratives.length
-    ? summary.topNarratives.map(([topic, count]) => `<li>${topic}: ${count} suspicious mentions</li>`).join("")
+    ? summary.topNarratives
+        .map(
+          ([topic, count]) => `<li>${topic}: ${count} suspicious mentions</li>`,
+        )
+        .join("")
     : "<li>No significant suspicious narrative spike detected.</li>";
 
   els.misinfoWatch.innerHTML = `
@@ -217,15 +362,24 @@ const renderMisinformationWatch = (summary) => {
 
 const renderAwarenessAdvisory = (advisories) => {
   if (!els.awarenessAdvisory) return;
-  els.awarenessAdvisory.innerHTML = advisories.map((tip) => `<li>${tip}</li>`).join("");
+  els.awarenessAdvisory.innerHTML = advisories
+    .map((tip) => `<li>${tip}</li>`)
+    .join("");
 };
 
 const renderVoterCorner = (filtered, breakdown, misinfoSummary) => {
-  if (!els.voterPulseSummary || !els.voterChecklist || !els.voterHelpline) return;
+  if (!els.voterPulseSummary || !els.voterChecklist || !els.voterHelpline)
+    return;
 
   const total = breakdown.Positive + breakdown.Negative + breakdown.Neutral;
-  const mood = breakdown.Positive >= breakdown.Negative ? "Stable" : "Sensitive";
-  const integrity = misinfoSummary.suspiciousRate >= 35 ? "High caution" : misinfoSummary.suspiciousRate >= 20 ? "Moderate caution" : "Low caution";
+  const mood =
+    breakdown.Positive >= breakdown.Negative ? "Stable" : "Sensitive";
+  const integrity =
+    misinfoSummary.suspiciousRate >= 35
+      ? "High caution"
+      : misinfoSummary.suspiciousRate >= 20
+        ? "Moderate caution"
+        : "Low caution";
 
   els.voterPulseSummary.innerHTML = `
     <div class="metric-row">
@@ -250,8 +404,10 @@ const renderVoterCorner = (filtered, breakdown, misinfoSummary) => {
     "Check election claims on official Election Commission channels before forwarding.",
     "Do not trust screenshots without source links and date context.",
     "If a message says 'urgent share', verify first, then decide.",
-    "Report suspicious election misinformation to local authorities or official grievance portals."
-  ].map((item) => `<li>${item}</li>`).join("");
+    "Report suspicious election misinformation to local authorities or official grievance portals.",
+  ]
+    .map((item) => `<li>${item}</li>`)
+    .join("");
 
   els.voterHelpline.innerHTML = `
     <article class="voter-help-card">
@@ -278,7 +434,8 @@ const classifyClaimPriority = (entry) => {
 
   if (entry.source === "Social") score += 1;
   if (entry.sentiment === "Negative") score += 1;
-  if (/fake|viral|rumor|evm|boycott|leaked|forwarded|vote cancelled/.test(text)) score += 2;
+  if (/fake|viral|rumor|evm|boycott|leaked|forwarded|vote cancelled/.test(text))
+    score += 2;
 
   if (score >= 5) return "critical";
   if (score >= 3) return "high";
@@ -288,11 +445,14 @@ const classifyClaimPriority = (entry) => {
 const prioritySlaMinutes = {
   critical: 15,
   high: 30,
-  medium: 60
+  medium: 60,
 };
 
 const formatSlaState = (entry, priority, currentClock) => {
-  const ageMinutes = Math.max(0, Math.floor((currentClock - entry.timestamp) / 60000));
+  const ageMinutes = Math.max(
+    0,
+    Math.floor((currentClock - entry.timestamp) / 60000),
+  );
   const remaining = prioritySlaMinutes[priority] - ageMinutes;
 
   if (remaining >= 0) {
@@ -304,26 +464,36 @@ const formatSlaState = (entry, priority, currentClock) => {
 
 const buildMythFact = (entry) => {
   const issueFacts = {
-    inflation: "Official CPI and state bulletin trends should be checked before sharing any price panic claims.",
-    water: "Municipal water schedules and ward tanker logs are the primary verifiable sources.",
+    inflation:
+      "Official CPI and state bulletin trends should be checked before sharing any price panic claims.",
+    water:
+      "Municipal water schedules and ward tanker logs are the primary verifiable sources.",
     jobs: "Employment announcements must be validated through government recruitment portals.",
-    corruption: "Allegations should be supported by official notices, FIR records, or court filings.",
-    safety: "Safety incidents must be verified via police advisories and validated news releases.",
-    roads: "Road closure or project claims should be cross-checked with PWD/MCD updates."
+    corruption:
+      "Allegations should be supported by official notices, FIR records, or court filings.",
+    safety:
+      "Safety incidents must be verified via police advisories and validated news releases.",
+    roads:
+      "Road closure or project claims should be cross-checked with PWD/MCD updates.",
   };
 
   return {
     myth: entry.text,
-    fact: issueFacts[entry.issue] || "Verify through Election Commission, district administration, and official government channels.",
-    neutralAction: "Publish a neutral myth-vs-fact note and route unresolved claims to the district fact-check cell."
+    fact:
+      issueFacts[entry.issue] ||
+      "Verify through Election Commission, district administration, and official government channels.",
+    neutralAction:
+      "Publish a neutral myth-vs-fact note and route unresolved claims to the district fact-check cell.",
   };
 };
 
 const renderMythFactCard = (entry, openModal = false) => {
-  if (!els.mythFactCard || !els.mythFactModalContent || !els.mythFactOverlay) return;
+  if (!els.mythFactCard || !els.mythFactModalContent || !els.mythFactOverlay)
+    return;
 
   if (!entry) {
-    const placeholder = "<p class=\"meta\">Select a queued claim and click Generate to view a Myth vs Fact card.</p>";
+    const placeholder =
+      '<p class="meta">Select a queued claim and click Generate to view a Myth vs Fact card.</p>';
     els.mythFactCard.innerHTML = placeholder;
     els.mythFactModalContent.innerHTML = placeholder;
     return;
@@ -360,15 +530,20 @@ const renderFactCheckQueue = (entries, currentClock) => {
   ui.factCheckLookup.clear();
 
   const queue = entries
-    .filter((entry) => entry.confidence < 72 || (entry.source === "Social" && entry.sentiment === "Negative"))
+    .filter(
+      (entry) =>
+        entry.confidence < 72 ||
+        (entry.source === "Social" && entry.sentiment === "Negative"),
+    )
     .slice(0, 10)
     .map((entry) => {
       const priority = classifyClaimPriority(entry);
-      const advice = priority === "critical"
-        ? "Escalate to district fact-check team immediately."
-        : priority === "high"
-          ? "Escalate to district fact-check team within 30 min."
-          : "Cross-check with official bulletin before amplification.";
+      const advice =
+        priority === "critical"
+          ? "Escalate to district fact-check team immediately."
+          : priority === "high"
+            ? "Escalate to district fact-check team within 30 min."
+            : "Cross-check with official bulletin before amplification.";
       return { entry, priority, advice };
     });
 
@@ -381,7 +556,9 @@ const renderFactCheckQueue = (entries, currentClock) => {
   }
 
   els.factCheckQueue.innerHTML = queue.length
-    ? queue.map(({ entry, priority, advice }) => `
+    ? queue
+        .map(
+          ({ entry, priority, advice }) => `
         <article class="fact-item ${priority}">
           <strong>${entry.issue} claim | ${entry.region}</strong>
           <div>${entry.text}</div>
@@ -392,10 +569,14 @@ const renderFactCheckQueue = (entries, currentClock) => {
           <small>Source: ${entry.source} | Confidence: ${entry.confidence}% | Action: ${advice}</small>
           <button class="action-btn claim-generate-btn" type="button" data-generate-myth="${entry.id}">Generate Myth vs Fact</button>
         </article>
-      `).join("")
-    : "<article class=\"fact-item medium\"><strong>No active claims in queue</strong><div>Signals are currently stable.</div></article>";
+      `,
+        )
+        .join("")
+    : '<article class="fact-item medium"><strong>No active claims in queue</strong><div>Signals are currently stable.</div></article>';
 
-  renderMythFactCard(ui.selectedClaimId ? ui.factCheckLookup.get(ui.selectedClaimId) : null);
+  renderMythFactCard(
+    ui.selectedClaimId ? ui.factCheckLookup.get(ui.selectedClaimId) : null,
+  );
 };
 
 const renderSourceTrustBoard = (entries) => {
@@ -403,34 +584,54 @@ const renderSourceTrustBoard = (entries) => {
 
   const sourceMap = new Map();
   entries.forEach((entry) => {
-    const row = sourceMap.get(entry.source) || { total: 0, confidence: 0, suspicious: 0 };
+    const row = sourceMap.get(entry.source) || {
+      total: 0,
+      confidence: 0,
+      suspicious: 0,
+    };
     row.total += 1;
     row.confidence += entry.confidence;
-    if (entry.confidence < 65 || (entry.source === "Social" && entry.sentiment === "Negative")) row.suspicious += 1;
+    if (
+      entry.confidence < 65 ||
+      (entry.source === "Social" && entry.sentiment === "Negative")
+    )
+      row.suspicious += 1;
     sourceMap.set(entry.source, row);
   });
 
-  const board = [...sourceMap.entries()].map(([source, row]) => {
-    const avg = row.total ? Number((row.confidence / row.total).toFixed(1)) : 0;
-    const suspiciousRate = row.total ? Math.round((row.suspicious / row.total) * 100) : 0;
-    const tier = avg >= 78 ? "high" : avg >= 66 ? "medium" : "low";
-    return { source, avg, suspiciousRate, tier, total: row.total };
-  }).sort((a, b) => b.avg - a.avg);
+  const board = [...sourceMap.entries()]
+    .map(([source, row]) => {
+      const avg = row.total
+        ? Number((row.confidence / row.total).toFixed(1))
+        : 0;
+      const suspiciousRate = row.total
+        ? Math.round((row.suspicious / row.total) * 100)
+        : 0;
+      const tier = avg >= 78 ? "high" : avg >= 66 ? "medium" : "low";
+      return { source, avg, suspiciousRate, tier, total: row.total };
+    })
+    .sort((a, b) => b.avg - a.avg);
 
-  els.sourceTrustBoard.innerHTML = board.map((row) => `
+  els.sourceTrustBoard.innerHTML = board
+    .map(
+      (row) => `
     <article class="source-item ${row.tier}">
       <strong>${row.source}</strong>
       <div>Trust score: ${row.avg}% | Suspicious share: ${row.suspiciousRate}%</div>
       <small>Signals processed: ${row.total}</small>
     </article>
-  `).join("");
+  `,
+    )
+    .join("");
 };
 
 const renderRegionMisinfoHeat = (rows) => {
   if (!els.regionMisinfoHeat) return;
 
   els.regionMisinfoHeat.innerHTML = rows.length
-    ? rows.map((row) => `
+    ? rows
+        .map(
+          (row) => `
         <article class="region-heat-item ${row.level}">
           <div class="region-heat-head">
             <strong>${row.region}</strong>
@@ -439,8 +640,10 @@ const renderRegionMisinfoHeat = (rows) => {
           <div>Suspicious rate: ${row.suspiciousRate}% (${row.suspicious}/${row.total})</div>
           <small>Avg confidence: ${row.avgConfidence}%</small>
         </article>
-      `).join("")
-    : "<p class=\"meta\">No region data available for current filters.</p>";
+      `,
+        )
+        .join("")
+    : '<p class="meta">No region data available for current filters.</p>';
 };
 
 const renderRiskRanking = (constituency) => {
@@ -467,13 +670,15 @@ const renderRiskRanking = (constituency) => {
 
 const renderConfidenceMetrics = (filtered) => {
   els.confidenceMetrics.innerHTML = "";
-  
-  const avgConfidence = filtered.length 
-    ? (filtered.reduce((sum, e) => sum + e.confidence, 0) / filtered.length).toFixed(1)
+
+  const avgConfidence = filtered.length
+    ? (
+        filtered.reduce((sum, e) => sum + e.confidence, 0) / filtered.length
+      ).toFixed(1)
     : 0;
-    
-  const highConfidenceCount = filtered.filter(e => e.confidence >= 80).length;
-  const lowConfidenceCount = filtered.filter(e => e.confidence < 60).length;
+
+  const highConfidenceCount = filtered.filter((e) => e.confidence >= 80).length;
+  const lowConfidenceCount = filtered.filter((e) => e.confidence < 60).length;
 
   els.confidenceMetrics.innerHTML = `
     <div class="metric-row">
@@ -490,8 +695,8 @@ const renderConfidenceMetrics = (filtered) => {
     </div>
     <div class="metric-row">
       <span class="metric-label">Data Quality</span>
-      <span class="metric-value confidence-badge ${avgConfidence >= 75 ? 'high' : avgConfidence >= 65 ? 'medium' : 'low'}">
-        ${avgConfidence >= 75 ? 'Excellent' : avgConfidence >= 65 ? 'Good' : 'Fair'}
+      <span class="metric-value confidence-badge ${avgConfidence >= 75 ? "high" : avgConfidence >= 65 ? "medium" : "low"}">
+        ${avgConfidence >= 75 ? "Excellent" : avgConfidence >= 65 ? "Good" : "Fair"}
       </span>
     </div>
   `;
@@ -516,7 +721,10 @@ const renderConstituencies = (summary) => {
 
 const renderBoothInsight = (boothId, filtered) => {
   const insight = simulator.boothInsight(boothId, filtered);
-  const complaints = insight.topComplaints.map(([issue, count]) => `${issue} (${count})`).join(", ") || "No major complaint pattern";
+  const complaints =
+    insight.topComplaints
+      .map(([issue, count]) => `${issue} (${count})`)
+      .join(", ") || "No major complaint pattern";
 
   els.boothInsightContent.innerHTML = `
     <strong>Booth ${insight.boothId}</strong>
@@ -529,9 +737,16 @@ const renderBoothInsight = (boothId, filtered) => {
 
 const renderReplayMeta = (history) => {
   els.timelineSlider.max = String(Math.max(0, history.length - 1));
-  els.timelineSlider.value = ui.replayIndex == null ? String(history.length - 1) : String(ui.replayIndex);
+  els.timelineSlider.value =
+    ui.replayIndex == null
+      ? String(history.length - 1)
+      : String(ui.replayIndex);
 
-  if (!history.length || ui.replayIndex == null || ui.replayIndex === history.length - 1) {
+  if (
+    !history.length ||
+    ui.replayIndex == null ||
+    ui.replayIndex === history.length - 1
+  ) {
     els.timelineStamp.textContent = "Latest";
     return null;
   }
@@ -544,7 +759,15 @@ const renderReplayMeta = (history) => {
 const buildWarRoomText = () => {
   if (!ui.reportSnapshot) return "No report snapshot available.";
 
-  const { meta, totals, issues, strategies, riskConstituencies, misinfo, advisories } = ui.reportSnapshot;
+  const {
+    meta,
+    totals,
+    issues,
+    strategies,
+    riskConstituencies,
+    misinfo,
+    advisories,
+  } = ui.reportSnapshot;
   return [
     "SentimentX - Misinformation Control Report",
     `Generated: ${meta.generatedAt}`,
@@ -563,19 +786,32 @@ const buildWarRoomText = () => {
     ...strategies.map((x) => `- ${x}`),
     "",
     "Constituencies At Risk:",
-    ...riskConstituencies.map((x) => `- ${x}`)
+    ...riskConstituencies.map((x) => `- ${x}`),
   ].join("\n");
 };
 
-const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constituency, seed, misinfoSummary, advisories }) => {
+const renderWarRoomReport = ({
+  filtered,
+  breakdown,
+  issues,
+  strategies,
+  constituency,
+  seed,
+  misinfoSummary,
+  advisories,
+}) => {
   const total = breakdown.Positive + breakdown.Negative + breakdown.Neutral;
   const scope = `${ui.filters.language}/${ui.filters.region}/${ui.filters.timeRangeMin}m`;
 
-  const avgConfidence = filtered.length 
-    ? (filtered.reduce((sum, e) => sum + e.confidence, 0) / filtered.length).toFixed(1)
+  const avgConfidence = filtered.length
+    ? (
+        filtered.reduce((sum, e) => sum + e.confidence, 0) / filtered.length
+      ).toFixed(1)
     : 0;
 
-  const issueLines = issues.slice(0, 5).map(([issue, count]) => `${issue}: ${count} mentions`);
+  const issueLines = issues
+    .slice(0, 5)
+    .map(([issue, count]) => `${issue}: ${count} mentions`);
   const strategyLines = strategies.slice(0, 5);
   const riskRows = [...constituency]
     .sort((a, b) => b.Negative - a.Negative)
@@ -584,7 +820,13 @@ const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constitu
       const negPct = formatPercent(row.Negative, row.total);
       const negVal = parseInt(negPct);
       const riskLevel = negVal >= 60 ? "high" : negVal >= 40 ? "medium" : "low";
-      return { name: row.name, negPct, riskLevel, total: row.total, avgConfidence: row.avgConfidence };
+      return {
+        name: row.name,
+        negPct,
+        riskLevel,
+        total: row.total,
+        avgConfidence: row.avgConfidence,
+      };
     });
 
   els.reportMeta.textContent = `Generated ${new Date().toLocaleString()} | Dataset seed ${seed} | Scope ${scope}`;
@@ -603,13 +845,13 @@ const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constitu
     </div>
     <div class="confidence-stat">
       <label>Data Quality</label>
-      <value class="confidence-badge ${avgConfidence >= 75 ? 'high' : avgConfidence >= 65 ? 'medium' : 'low'}">
-        ${avgConfidence >= 75 ? 'Excellent' : avgConfidence >= 65 ? 'Good' : 'Fair'}
+      <value class="confidence-badge ${avgConfidence >= 75 ? "high" : avgConfidence >= 65 ? "medium" : "low"}">
+        ${avgConfidence >= 75 ? "Excellent" : avgConfidence >= 65 ? "Good" : "Fair"}
       </value>
     </div>
     <div class="confidence-stat">
       <label>High Confidence Signals</label>
-      <value>${filtered.filter(e => e.confidence >= 80).length}</value>
+      <value>${filtered.filter((e) => e.confidence >= 80).length}</value>
     </div>
     <div class="confidence-stat">
       <label>Suspicious Signal Rate</label>
@@ -621,44 +863,65 @@ const renderWarRoomReport = ({ filtered, breakdown, issues, strategies, constitu
     </div>
   `;
 
-  els.reportRiskDetail.innerHTML = riskRows.map((row) => `
+  els.reportRiskDetail.innerHTML =
+    riskRows
+      .map(
+        (row) => `
     <div class="risk-detail-row ${row.riskLevel}">
       <div>
         <strong>${row.name}</strong><br/>
         <small>Negative: ${row.negPct} | Confidence: ${row.avgConfidence}%</small>
       </div>
     </div>
-  `).join("") || "<div style=\"text-align: center; color: var(--muted);\">No risk constituencies detected</div>";
+  `,
+      )
+      .join("") ||
+    '<div style="text-align: center; color: var(--muted);">No risk constituencies detected</div>';
 
-  els.reportIssues.innerHTML = issueLines.map((x) => `<li>${x}</li>`).join("") || "<li>No major issue trend detected.</li>";
-  els.reportStrategies.innerHTML = strategyLines.map((x) => `<li>${x}</li>`).join("") || "<li>Maintain current campaign rhythm.</li>";
-  els.reportRiskConstituencies.innerHTML = riskRows.map((x) => `<div class=\"constituency-card\">${x.name} - Negative ${x.negPct}</div>`).join("")
-    || "<div class=\"constituency-card\">No constituency risk spikes.</div>";
+  els.reportIssues.innerHTML =
+    issueLines.map((x) => `<li>${x}</li>`).join("") ||
+    "<li>No major issue trend detected.</li>";
+  els.reportStrategies.innerHTML =
+    strategyLines.map((x) => `<li>${x}</li>`).join("") ||
+    "<li>Maintain current campaign rhythm.</li>";
+  els.reportRiskConstituencies.innerHTML =
+    riskRows
+      .map(
+        (x) =>
+          `<div class=\"constituency-card\">${x.name} - Negative ${x.negPct}</div>`,
+      )
+      .join("") ||
+    '<div class="constituency-card">No constituency risk spikes.</div>';
 
   ui.reportSnapshot = {
     meta: {
       generatedAt: new Date().toLocaleString(),
       seed,
-      scope
+      scope,
     },
     totals: {
       total: filtered.length,
       positivePct: formatPercent(breakdown.Positive, total),
       negativePct: formatPercent(breakdown.Negative, total),
-      neutralPct: formatPercent(breakdown.Neutral, total)
+      neutralPct: formatPercent(breakdown.Neutral, total),
     },
     confidence: {
       average: avgConfidence,
-      dataQuality: avgConfidence >= 75 ? 'Excellent' : avgConfidence >= 65 ? 'Good' : 'Fair'
+      dataQuality:
+        avgConfidence >= 75
+          ? "Excellent"
+          : avgConfidence >= 65
+            ? "Good"
+            : "Fair",
     },
     misinfo: {
       suspiciousRate: misinfoSummary.suspiciousRate,
-      highRisk: misinfoSummary.riskCounts.high
+      highRisk: misinfoSummary.riskCounts.high,
     },
     issues: issueLines,
     advisories,
     strategies: strategyLines,
-    riskConstituencies: riskRows.map(r => `${r.name} - Negative ${r.negPct}`)
+    riskConstituencies: riskRows.map((r) => `${r.name} - Negative ${r.negPct}`),
   };
 };
 
@@ -676,10 +939,19 @@ const applyRender = () => {
   const replaySnap = renderReplayMeta(all.history);
   const effectiveBreakdown = replaySnap ? replaySnap.totals : breakdown;
 
-  const total = effectiveBreakdown.Positive + effectiveBreakdown.Negative + effectiveBreakdown.Neutral;
+  const total =
+    effectiveBreakdown.Positive +
+    effectiveBreakdown.Negative +
+    effectiveBreakdown.Neutral;
   els.kpiTotal.textContent = String(filtered.length);
-  els.kpiPositive.textContent = formatPercent(effectiveBreakdown.Positive, total);
-  els.kpiNegative.textContent = formatPercent(effectiveBreakdown.Negative, total);
+  els.kpiPositive.textContent = formatPercent(
+    effectiveBreakdown.Positive,
+    total,
+  );
+  els.kpiNegative.textContent = formatPercent(
+    effectiveBreakdown.Negative,
+    total,
+  );
   els.kpiNeutral.textContent = formatPercent(effectiveBreakdown.Neutral, total);
 
   renderFeed(filtered);
@@ -701,7 +973,7 @@ const applyRender = () => {
     onBoothClick: (boothId) => {
       ui.selectedBoothId = boothId;
       renderBoothInsight(boothId, filtered);
-    }
+    },
   });
 
   renderBoothInsight(ui.selectedBoothId, filtered);
@@ -717,13 +989,18 @@ const applyRender = () => {
     constituency,
     seed: all.seed,
     misinfoSummary,
-    advisories
+    advisories,
   });
 };
 
 const onDataUpdate = (state) => {
   const meta = state.lastTickMeta;
-  if (meta && meta.negativeRate - ui.prevNegativeRate > 0.18 && meta.boothSpike && meta.boothSpike.negRatio > 0.55) {
+  if (
+    meta &&
+    meta.negativeRate - ui.prevNegativeRate > 0.18 &&
+    meta.boothSpike &&
+    meta.boothSpike.negRatio > 0.55
+  ) {
     notifyAlert(`Negative spike in Booth ${meta.boothSpike.boothId}`);
   }
   if (meta?.misinfoRate > 35) {
@@ -750,7 +1027,10 @@ const setTab = (tabName) => {
 
   const target = els.tabViews.find((tab) => tab.id === tabName);
   if (target) {
-    const label = els.tabLinks.find((btn) => btn.dataset.tab === tabName)?.textContent?.trim() || "section";
+    const label =
+      els.tabLinks
+        .find((btn) => btn.dataset.tab === tabName)
+        ?.textContent?.trim() || "section";
     target.setAttribute("aria-busy", "true");
     els.tabLoadingAnnouncer.textContent = `Loading ${label}`;
     target.classList.add("is-loading");
@@ -768,6 +1048,9 @@ const setTab = (tabName) => {
 const bindTabs = () => {
   els.tabLinks.forEach((btn) => {
     btn.addEventListener("click", () => {
+      if (ui.autoTourRunning) {
+        cancelAutoDemoTour(false);
+      }
       setTab(btn.dataset.tab);
       els.appShell.classList.remove("menu-open");
     });
@@ -827,19 +1110,38 @@ const bindControls = () => {
     setDemoMode(next);
   });
 
-  els.timelineSlider.addEventListener("input", debounce(() => {
-    const idx = Number(els.timelineSlider.value);
-    const max = Number(els.timelineSlider.max);
-    ui.replayIndex = idx >= max ? null : idx;
-    applyRender();
-  }, 30));
+  els.timelineSlider.addEventListener(
+    "input",
+    debounce(() => {
+      const idx = Number(els.timelineSlider.value);
+      const max = Number(els.timelineSlider.max);
+      ui.replayIndex = idx >= max ? null : idx;
+      applyRender();
+    }, 30),
+  );
 
   els.exportCsvBtn.addEventListener("click", () => {
     const rows = simulator.getFilteredEntries(ui.filters);
-    const head = ["id", "timestamp", "source", "region", "language", "constituency", "boothId", "sentiment", "confidence", "issue", "text"];
+    const head = [
+      "id",
+      "timestamp",
+      "source",
+      "region",
+      "language",
+      "constituency",
+      "boothId",
+      "sentiment",
+      "confidence",
+      "issue",
+      "text",
+    ];
     const csv = [
       head.join(","),
-      ...rows.map((r) => head.map((key) => `"${String(r[key]).replaceAll("\"", "\"\"")}"`).join(","))
+      ...rows.map((r) =>
+        head
+          .map((key) => `"${String(r[key]).replaceAll('"', '""')}"`)
+          .join(","),
+      ),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -855,6 +1157,10 @@ const bindControls = () => {
     els.warRoomOverlay.classList.add("open");
     els.warRoomOverlay.setAttribute("aria-hidden", "false");
   });
+
+  if (els.autoTourBtn) {
+    els.autoTourBtn.addEventListener("click", runAutoDemoTour);
+  }
 
   els.reportCloseBtn.addEventListener("click", () => {
     els.warRoomOverlay.classList.remove("open");
@@ -886,7 +1192,9 @@ const bindAssistantMode = () => {
   els.modeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       ui.chatMode = btn.dataset.mode;
-      els.modeButtons.forEach((node) => node.classList.toggle("active", node === btn));
+      els.modeButtons.forEach((node) =>
+        node.classList.toggle("active", node === btn),
+      );
     });
   });
 };
@@ -918,14 +1226,28 @@ const bindSidebarCollapse = () => {
 
   els.sidebarCollapseToggle.addEventListener("click", () => {
     const collapsed = els.appShell.classList.toggle("sidebar-collapsed");
-    els.sidebarCollapseToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    els.sidebarCollapseToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-    els.sidebarCollapseToggle.setAttribute("title", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    els.sidebarCollapseToggle.setAttribute(
+      "aria-expanded",
+      collapsed ? "false" : "true",
+    );
+    els.sidebarCollapseToggle.setAttribute(
+      "aria-label",
+      collapsed ? "Expand sidebar" : "Collapse sidebar",
+    );
+    els.sidebarCollapseToggle.setAttribute(
+      "title",
+      collapsed ? "Expand sidebar" : "Collapse sidebar",
+    );
   });
 };
 
 const init = () => {
   charts.init();
+  if (charts.usingFallback) {
+    notifyAlert(
+      "Offline chart mode active: running without external libraries.",
+    );
+  }
 
   const theme = storage.getTheme();
   setTheme(theme);
@@ -955,7 +1277,7 @@ const init = () => {
     input: els.assistantInput,
     messagesBox: els.assistantMessages,
     chatbot,
-    getMode: () => ui.chatMode
+    getMode: () => ui.chatMode,
   });
 
   attachChatUI({
@@ -963,7 +1285,7 @@ const init = () => {
     input: els.widgetInput,
     messagesBox: els.widgetMessages,
     chatbot,
-    getMode: () => ui.chatMode
+    getMode: () => ui.chatMode,
   });
 
   simulator.onUpdate(onDataUpdate);
